@@ -6,6 +6,29 @@ from util import generateError, generateResponse, validateJWT, userIsAdmin
 users_blueprint = Blueprint('users', __name__)
 
 
+@users_blueprint.route('/byID/<user_id>', methods=['GET'])
+def getUserRoles(user_id):
+    try:
+        valid = validateJWT(request)
+    except:
+        return generateError(500, "Could not validate jwt_token")
+
+    if (not valid):
+        return generateError(400, "Invalid jwt_token")
+
+    try:
+
+        user = User.query.filter_by(id=user_id).first()
+
+        if (user):
+            return generateResponse(User.jsonify(user))
+        else:
+            return generateError(404, "User not found")
+
+    except:
+        return generateError(500, "Could not proccess request")
+
+
 @users_blueprint.route('/register', methods=['POST'])
 def registerUsers():
     try:
@@ -87,56 +110,55 @@ def bindRoleToUsers(role_id):
     if (not userIsAdmin(valid["userID"])):
         return generateError(403, "User is not admin")
 
-    try:
-        role_id = int(role_id)
-        role = Role.query.filter_by(id=role_id).first()
-        if (not role):
-            return generateError(404, 'Role not found')
+    role_id = int(role_id)
+    role = Role.query.filter_by(id=role_id).first()
+    if (not role):
+        return generateError(404, 'Role not found')
 
-        action = request.json["action"]
-        users_to_add = request.json["users"]
-        users_added = []
+    action = request.json["action"]
+    users_to_add = request.json["users"]
+    users_added = []
 
-        # sanitize "action" field
-        if (action != "add"):
-            if (action != "remove"):
-                return generateError(400, 'Valid values for the `action` field are `add` and `remove`')
+    # sanitize "action" field
+    if (action != "add"):
+        if (action != "remove"):
+            return generateError(400, 'Valid values for the `action` field are `add` and `remove`')
 
-        # admins cannot remove their own admin role
+    # admins cannot remove their own admin role
+    if (action == "remove"):
         if (role.name == "admin"):
-            users_to_add.remove(valid["userID"])
+            if valid["userID"] in users_to_add:
+                users_to_add.remove(valid["userID"])
 
-        # figure out user information
-        for user_id in users_to_add:
-            user_db_entry = User.query.filter_by(id=user_id).first()
-            if (user_db_entry):
-                # check if role is already set for that user
-                role_set = False
-                for user_role in user_db_entry.roles:
-                    if (user_role.id == role_id):
-                        role_set = True
-                # handle adding or removing role for user
-                if (action == "add"):
-                    if (role_set == False):
-                        user_db_entry.roles.append(role)
-                        db.session.add(user_db_entry)
-                        users_added.append(user_db_entry.id)
+    # figure out user information
+    for user_id in users_to_add:
+        user_db_entry = User.query.filter_by(id=user_id).first()
+        if (user_db_entry):
+            # check if role is already set for that user
+            role_set = False
+            for user_role in user_db_entry.roles:
+                if (user_role.id == role_id):
+                    role_set = True
+            # handle adding or removing role for user
+            if (action == "add"):
+                if (role_set == False):
+                    user_db_entry.roles.append(role)
+                    db.session.add(user_db_entry)
+                    users_added.append(user_db_entry.id)
 
-                if (action == "remove"):
-                    if (role_set == True):
-                        user_db_entry.roles.remove(role)
-                        db.session.add(user_db_entry)
-                        users_added.append(user_db_entry.id)
+            if (action == "remove"):
+                if (role_set == True):
+                    user_db_entry.roles.remove(role)
+                    db.session.add(user_db_entry)
+                    users_added.append(user_db_entry.id)
 
-        db.session.commit()
+    db.session.commit()
 
-        return generateResponse({
-            "role": Role.jsonify(role),
-            "action": action,
-            "users": users_added
-        })
-    except:
-        return generateError(500, "Could not proccess request")
+    return generateResponse({
+        "role": Role.jsonify(role),
+        "action": action,
+        "users": users_added
+    })
 
 
 @users_blueprint.route('/byRole/<role_id>', methods=['GET'])
