@@ -6,7 +6,7 @@ from util import generateError, generateResponse, validateJWT, userIsAdmin
 users_blueprint = Blueprint('users', __name__)
 
 
-@users_blueprint.route('/byID/<user_id>', methods=['GET'])
+@users_blueprint.route('/byID/<user_id>', methods=['GET', 'POST'])
 def getUserRoles(user_id):
     try:
         valid = validateJWT(request)
@@ -16,15 +16,42 @@ def getUserRoles(user_id):
     if (not valid):
         return generateError(400, "Invalid jwt_token")
 
+    user = User.query.filter_by(id=user_id).first()
+    if not user:
+        return generateError(404, "User not found")
     try:
-
-        user = User.query.filter_by(id=user_id).first()
-
-        if (user):
+        if (request.method == 'GET'):
             return generateResponse(User.jsonify(user))
-        else:
-            return generateError(404, "User not found")
 
+        if (request.method == 'POST'):
+            if not userIsAdmin(valid["userID"]):
+                return generateError(403, "User is not admin")
+
+            if not validateByIDJSON(request.json):
+                return generateError(400, "Bad request body")
+
+            roles_to_set = []
+            adminRolePresent = False
+
+            for role_id in request.json['roles']:
+                role = Role.query.filter_by(id=role_id).first()
+                if not role:
+                    return generateError(404, f"Role {role_id} not found")
+                roles_to_set.append(role)
+
+                if role.name == 'admin':
+                    adminRolePresent = True
+
+            # Perform check whether user is not removing their own admin role
+            if int(valid['userID']) == int(user_id):
+                if not adminRolePresent:
+                    return generateError(400, "User cannot remove their own admin role")
+
+            user.roles = roles_to_set
+            db.session.add(user)
+            db.session.commit()
+
+            return(generateResponse(User.jsonify(user)))
     except:
         return generateError(500, "Could not proccess request")
 
@@ -238,3 +265,15 @@ def getUsersList(page_size, page_num):
 def paginateArray(array, pageSize):
     for i in range(0, len(array), pageSize):
         yield array[i:i + pageSize]
+
+
+def validateByIDJSON(requestJson):
+    try:
+        roles = requestJson["roles"]
+
+        for role_id in roles:
+            id = role_id
+
+        return True
+    except:
+        return False

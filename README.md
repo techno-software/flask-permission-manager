@@ -63,6 +63,45 @@ If a POST request is sent to a role that already exists, the role with that ID w
 * `DELETE` `/role/<id>` - allows for deleting a role. The `user` and `admin` roles cannot be deleted
 
 ### User management endpoints
+* `GET` `/users/byID/<user_id>` - returns a json object containing all role information about a particular user in the system in the format: 
+```
+{
+	"data": {
+		"id": int,
+		"roles": [
+			{
+				"id": int,
+				"name": String
+			}
+		]
+	},
+	"status": int
+}
+```
+This information is accessible by all logged in users of the system
+
+* `POST` `/users/byID/<user_id>` - this route is used to SET the permissions of a single user in the system. The request body expects an array of role ids to be set for the user in the format:
+```
+{
+	"roles": [int]
+}
+```
+This route is available only to system administrators. It should be noted that this route will not allow amnistrators to remove their own `admin` role - if the role is missing from the new role list, the request will not be successful. The route will return the new user role information in the same format as the `GET` route:
+```
+{
+	"data": {
+		"id": int,
+		"roles": [
+			{
+				"id": int,
+				"name": String
+			}
+		]
+	},
+	"status": int
+}
+```
+
 * `GET` `/users/all/<pageSize>/<pageNum>` - returns a list of all users registered in the system along with data about their current roles and permissions. The `<pageSize>` and `<pageNum>` paramaters are expected to be positive integers, `<pageSize>` being in the range [1, 200], and `<pageNum>` being smaller than the last page. The data section of this route contains a `nextPage` field, that indicates whether a page after the current one exists.
 
 * `GET` `/users/byRole/<roleID>` - returns role infomration as well as a list of users that have that role within the permission management system. The `<roleID>` URL paramater should be an integer and a valid id of a `role` within the system
