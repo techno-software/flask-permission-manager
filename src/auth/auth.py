@@ -9,16 +9,16 @@ auth_blueprint = Blueprint('auth', __name__)
 @auth_blueprint.route('/', methods=['GET'])
 def get_permissions():
     try:
-        valid = validateJWT(request) 
+        valid = validateJWT(request)
     except:
         return generateError(500, "Could not validate jwt_token")
-    
+
     if (not valid):
         return generateError(400, "Invalid jwt_token")
 
     try:
         # check if user entry exists, and create it if it doesn't
-        user_entry = User.query.filter_by(id=valid["userID"]).first()   
+        user_entry = User.query.filter_by(id=valid["userID"]).first()
         if (not user_entry):
             user_roles = [Role.query.filter_by(name='user').first()]
 
@@ -26,9 +26,9 @@ def get_permissions():
             if (User.query.count() == 0):
                 user_roles.append(Role.query.filter_by(name='admin').first())
 
-            user_entry = User (
-                id = valid["userID"],
-                roles = user_roles
+            user_entry = User(
+                id=valid["userID"],
+                roles=user_roles
             )
             db.session.add(user_entry)
             db.session.commit()
@@ -37,7 +37,7 @@ def get_permissions():
         roles = []
         for role in user_entry.roles:
             roles.append(Role.jsonify(role))
-        
+
         # de-duplicate permissions
         permissions = []
         for role in user_entry.roles:
@@ -50,7 +50,7 @@ def get_permissions():
 
                 if (exists == False):
                     permissions.append(Permission.jsonify(perm))
-        
+
         roles_info_basic = []
         for role in roles:
             role_info = {
@@ -63,7 +63,7 @@ def get_permissions():
         token_issued_time = datetime.now()
         token_expiry_time = token_issued_time + timedelta(days=30)
 
-        token = createJWTToken ({
+        token = createJWTToken({
             'permissions': permissions,
             'roles': roles_info_basic,
             'userID': valid["userID"],
@@ -72,7 +72,7 @@ def get_permissions():
         })
 
         response = make_response({
-            "data":{   
+            "data": {
                 "userID": valid["userID"],
                 "roles": roles,
                 "perms": permissions,
@@ -82,7 +82,7 @@ def get_permissions():
             },
             "status": 200
         })
-        response.set_cookie('jwt_permissions', token, max_age=timedelta(days=30))
-        return response  
+        response.set_cookie('jwt_permissions', token, max_age=timedelta(days=30), samesite='Strict', secure=True)  # nopep8
+        return response
     except:
         return generateError(500, "Could not proccess request")

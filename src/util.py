@@ -9,6 +9,7 @@ rootDir = path.abspath(path.join(__file__, "./../../certs"))
 JWT_PRIVATE_KEY = open(path.join(rootDir, "private.key")).read()
 JWT_PUBLIC_KEY = open(path.join(rootDir, "public.pem")).read()
 
+
 # helper functions for generating responses
 def generateResponse(message):
     return {
@@ -28,7 +29,7 @@ def generateError(code, message):
 
 
 # helper functions for authentication
-def userIsAdmin (user_id):
+def userIsAdmin(user_id):
     user = User.query.filter_by(id=user_id).first()
     if (user):
         for role in user.roles:
