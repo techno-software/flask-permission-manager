@@ -1,10 +1,10 @@
-Flask
+Flask<2.3
 flask_cors
 psutil
 pyjwt<2.0
 cryptography
 gunicorn
-flask_sqlalchemy
+Flask-SQLAlchemy>2
 psycopg2-binary>=2.8
 Flask-Migrate
 python-dotenv
